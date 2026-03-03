@@ -30,9 +30,9 @@ This project runs entirely on Vercel (no PHP needed).
 
 ## Required environment variables
 
-All of these are required in `.env.local` for local dev and in Vercel environment settings:
+All of these are required in `.env.local` for local dev and in Vercel environment settings, except `CC_EMAILS` (optional):
 
-- `KEY_TO_ACCESS_THE_SCRIPT` (query key used by `/?key=...` and API routes)
+- `KEY_TO_ACCESS_THE_SCRIPT` (query key used by `/?key=...` and API routes; APIs also accept header `x-access-key`)
 - `OPENROUTER_API_KEY` (used by `/api/expand`)
 - `POSTMARK_API_KEY` (used by `/api/send`)
 - `FROM_YOUR_EMAIL`
