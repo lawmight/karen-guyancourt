@@ -1,39 +1,29 @@
 <?php
 
-// Karen Bot by @levelsio 
+// Karen Bot by @levelsio — adapted for Guyancourt, France
 //
-// ask Claude Code or Cursor to adapt it to your city
-// mine is for Lisbon in Portuguese but it should work with any city and any language!
 // save it as council.php and add a Nginx route /council on your server to use it
-// make sure to add /council?key= and set a key below to use it privately
-// 
+// make sure to add /council?key= and set a key in .local.env to use it privately
+//
 // more info: https://x.com/levelsio/status/2009011216132526407?s=20
 
-// <set vars here>
-    // this is the key you add to the url like /council?key= so only you can access it
-    define('KEY_TO_ACCESS_THE_SCRIPT', 'key');
-
-    // I used Postmark but you can chance to other email services of coruse
-    define('POSTMARK_API_KEY', 'INSERT_KEY_HERE');
-    define('OPENAI_API_KEY', 'your-key-here');
-
-    // email addresses
-    define('YOUR_NAME', 'Your Name To Sign The Letter');
-    define('FROM_YOUR_EMAIL', 'you@you.com');
-    define('TO_COUNCIL_EMAIL', 'council@city.com');
-    define('CC_EMAILS', 'gf@gf.com');
-
-    // set to your city
-    define('MAP_CENTER_LAT', 38.734674);
-    define('MAP_CENTER_LNG', -9.16427);
-// </set vars here>
+// Load configuration from .local.env
+$envFile = __DIR__ . '/.local.env';
+if (file_exists($envFile)) {
+    foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+        $line = trim($line);
+        if ($line === '' || $line[0] === '#') continue;
+        if (strpos($line, '=') === false) continue;
+        [$key, $value] = explode('=', $line, 2);
+        define(trim($key), trim($value));
+    }
+}
 
 error_reporting(0);
 ini_set('upload_max_filesize', '50M');
 ini_set('post_max_size', '50M');
 ini_set('max_file_uploads', '20');
 
-// Simple access key check
 if (($_GET['key'] ?? '') !== KEY_TO_ACCESS_THE_SCRIPT) {
     http_response_code(404);
     exit('Not found');
@@ -43,10 +33,10 @@ $config = [
     'postmark' => [
         'token' => POSTMARK_API_KEY,
         'from' => FROM_YOUR_EMAIL,
-        'to' => TO_COUNCIL_EMAIL 
+        'to' => TO_COUNCIL_EMAIL
     ],
-    'openai' => [
-        'key' => OPENAI_API_KEY
+    'openrouter' => [
+        'key' => OPENROUTER_API_KEY
     ]
 ];
 
@@ -64,61 +54,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $lng = trim($_POST['lng'] ?? '');
 
     if (empty($complaint)) {
-        echo json_encode(['success' => false, 'error' => 'Complaint text is required']);
+        echo json_encode(['success' => false, 'error' => 'Le texte du signalement est requis']);
         exit;
     }
 
-    $systemPrompt = "Você é um assistente que transforma reclamações informais em cartas formais em português de Portugal para enviar à Câmara Municipal.
+    $systemPrompt = "Vous êtes un assistant qui transforme des signalements informels en lettres formelles en français pour la Mairie de Guyancourt (Yvelines, Île-de-France).
 
-FORMATO DA CARTA:
-Começa SEMPRE com um bloco de dados estruturados para scan rápido (só inclui campos que tens informação):
+FORMAT DE LA LETTRE :
+Commencez TOUJOURS par un bloc de données structurées pour lecture rapide (n'incluez que les champs pour lesquels vous avez des informations) :
 
 ---
-Resumo: [uma linha resumindo o problema, ex: 'Acumulação de lixo junto ao contentor há 3 dias']
-Localização: [morada/rua mencionada]
-Google Maps: [link se fornecido]
+Résumé : [une ligne résumant le problème, ex: 'Accumulation de déchets sauvages rue de la Mare depuis 3 jours']
+Localisation : [adresse/rue mentionnée]
+Google Maps : [lien si fourni]
 ---
 
-Depois escreve a carta formal:
-- Saudação formal gender-neutral: usa 'Ex.mos Senhores,' (dirigido à Câmara em geral, não ao presidente)
-- Estruturar o problema de forma clara
-- Incluir um pedido de ação específico
-- Terminar com despedida formal
+Ensuite rédigez la lettre formelle :
+- Formule d'appel : 'Madame, Monsieur,'
+- Structurer le problème de manière claire et factuelle
+- Inclure une demande d'action spécifique
+- Terminer avec une formule de politesse formelle
 
-IMPORTANTE: NUNCA adicionar placeholders, templates, ou texto entre parênteses retos como [nome], [morada], [Espaço para...], etc. A carta deve estar pronta a enviar sem qualquer texto para preencher. Se não tens uma informação, simplesmente não incluas esse campo.
+IMPORTANT : N'ajoutez JAMAIS de placeholders, templates ou texte entre crochets comme [nom], [adresse], [Espace pour...], etc. La lettre doit être prête à envoyer sans aucun texte à compléter. Si vous n'avez pas une information, ne l'incluez simplement pas.
 
-Assina sempre a carta com:
-Com os melhores cumprimentos,
+Signez toujours la lettre avec :
+Veuillez agréer, Madame, Monsieur, l'expression de mes salutations distinguées.
 ".YOUR_NAME;
 
-    $userPrompt = "Transforma a seguinte reclamação numa carta formal para a Câmara Municipal de Lisboa.\n\n";
+    $userPrompt = "Transformez le signalement suivant en une lettre formelle adressée à la Mairie de Guyancourt.\n\n";
 
     if (!empty($address)) {
-        $userPrompt .= "Localização do problema: $address\n";
+        $userPrompt .= "Localisation du problème : $address\n";
         if (!empty($lat) && !empty($lng)) {
-            $userPrompt .= "Google Maps: https://www.google.com/maps/@$lat,$lng,100m/data=!3m1!1e3\n";
+            $userPrompt .= "Google Maps : https://www.google.com/maps/@$lat,$lng,100m/data=!3m1!1e3\n";
         }
         $userPrompt .= "\n";
     }
 
-    $userPrompt .= "Report:\n$complaint";
+    $userPrompt .= "Signalement :\n$complaint";
 
     if ($hasAttachments) {
-        $userPrompt .= "\n\nNOTA: O remetente vai anexar fotografias como prova. Menciona isso na carta (ex: 'Em anexo envio fotografias que comprovam a situação descrita.')";
+        $userPrompt .= "\n\nNOTE : L'expéditeur va joindre des photographies comme preuve. Mentionnez-le dans la lettre (ex: 'Vous trouverez ci-joint des photographies attestant de la situation décrite.')";
     }
 
-    $userPrompt .= "\n\nEscreve primeiro a carta em português, depois escreve ===ENGLISH=== e a tradução em inglês.";
+    $userPrompt .= "\n\nRédigez d'abord la lettre en français, puis écrivez ===ENGLISH=== et la traduction en anglais.";
 
     $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, 'https://api.openai.com/v1/chat/completions');
+    curl_setopt($ch, CURLOPT_URL, 'https://openrouter.ai/api/v1/chat/completions');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Content-Type: application/json',
-        'Authorization: Bearer ' . OPENAI_API_KEY
+        'Authorization: Bearer ' . OPENROUTER_API_KEY
     ]);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-        'model' => 'gpt-4o-mini',
+        'model' => 'meta-llama/llama-3.1-8b-instruct:free',
         'messages' => [
             ['role' => 'system', 'content' => $systemPrompt],
             ['role' => 'user', 'content' => $userPrompt]
@@ -133,7 +123,7 @@ Com os melhores cumprimentos,
     curl_close($ch);
 
     if ($httpCode !== 200) {
-        echo json_encode(['success' => false, 'error' => 'Failed to connect to OpenAI API']);
+        echo json_encode(['success' => false, 'error' => "Impossible de se connecter à l'API OpenRouter"]);
         exit;
     }
 
@@ -141,7 +131,7 @@ Com os melhores cumprimentos,
     if (isset($data['choices'][0]['message']['content'])) {
         echo json_encode(['success' => true, 'expanded' => $data['choices'][0]['message']['content']]);
     } else {
-        echo json_encode(['success' => false, 'error' => 'Invalid response from OpenAI']);
+        echo json_encode(['success' => false, 'error' => "Réponse invalide de l'API OpenRouter"]);
     }
     exit;
 }
@@ -154,8 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $lat = trim($_POST['lat'] ?? '');
     $lng = trim($_POST['lng'] ?? '');
 
-    // Extract Resumo from the letter for subject, or fallback to first 60 chars
-    if (preg_match('/Resumo:\s*(.+)/i', $complaint, $matches)) {
+    if (preg_match('/Résumé\s*:\s*(.+)/iu', $complaint, $matches)) {
         $subject = trim($matches[1]);
     } else {
         $subject = mb_substr(preg_replace('/\s+/', ' ', $complaint), 0, 60);
@@ -163,15 +152,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 
     if (empty($complaint)) {
-        echo json_encode(['success' => false, 'message' => 'Please fill in the complaint.']);
+        echo json_encode(['success' => false, 'message' => 'Veuillez remplir le signalement.']);
         exit;
     }
 
-    // Build email body
     $emailBody = $complaint;
-    $emailBody .= "\n\nSent from my iPhone";
+    $emailBody .= "\n\nEnvoyé depuis mon iPhone";
 
-    // Prepare attachments (resize images to ~1MB max)
     $attachments = [];
     if (isset($_FILES['attachments']) && is_array($_FILES['attachments']['name'])) {
         for ($i = 0; $i < count($_FILES['attachments']['name']); $i++) {
@@ -180,14 +167,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $fileName = $_FILES['attachments']['name'][$i];
                 $mimeType = mime_content_type($tmpName);
 
-                // Resize image if it's too large
-                $maxSize = 1024 * 1024; // 1MB
+                $maxSize = 1024 * 1024;
                 $fileSize = filesize($tmpName);
 
                 if (strpos($mimeType, 'image/') === 0 && $fileSize > $maxSize) {
                     $imageData = resizeImage($tmpName, $mimeType, $maxSize);
                     $content = base64_encode($imageData);
-                    // Update filename to jpg if converted
                     if ($mimeType !== 'image/jpeg') {
                         $fileName = pathinfo($fileName, PATHINFO_FILENAME) . '.jpg';
                         $mimeType = 'image/jpeg';
@@ -206,7 +191,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 
     function resizeImage($filePath, $mimeType, $maxSize) {
-        // Load image
         switch ($mimeType) {
             case 'image/jpeg':
                 $img = imagecreatefromjpeg($filePath);
@@ -226,11 +210,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
         if (!$img) return file_get_contents($filePath);
 
-        // Get dimensions
         $width = imagesx($img);
         $height = imagesy($img);
 
-        // Start with quality 85 and reduce until under maxSize
         $quality = 85;
         do {
             ob_start();
@@ -239,7 +221,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $quality -= 10;
         } while (strlen($data) > $maxSize && $quality > 20);
 
-        // If still too large, also reduce dimensions
         if (strlen($data) > $maxSize) {
             $scale = sqrt($maxSize / strlen($data));
             $newWidth = (int)($width * $scale);
@@ -258,14 +239,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         return $data;
     }
 
-    // Check if files were uploaded but none processed (attachment failure)
     $filesUploaded = isset($_FILES['attachments']) && !empty($_FILES['attachments']['name'][0]);
     if ($filesUploaded && empty($attachments)) {
-        echo json_encode(['success' => false, 'message' => 'Failed to process attachments. Please try again.']);
+        echo json_encode(['success' => false, 'message' => 'Échec du traitement des pièces jointes. Veuillez réessayer.']);
         exit;
     }
 
-    // Send via Postmark
     $emailPayload = [
         'From' => $config['postmark']['from'],
         'To' => $config['postmark']['to'],
@@ -299,21 +278,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
     if ($httpCode === 200 && isset($responseData['MessageID'])) {
         $attachmentCount = count($attachments);
-        echo json_encode(['success' => true, 'message' => "Complaint sent successfully! ({$attachmentCount} photo" . ($attachmentCount != 1 ? 's' : '') . " attached)"]);
+        echo json_encode(['success' => true, 'message' => "Signalement envoyé avec succès ! ({$attachmentCount} photo" . ($attachmentCount != 1 ? 's' : '') . " en pièce jointe)"]);
     } else {
-        $errorMsg = $responseData['Message'] ?? 'Unknown error';
-        echo json_encode(['success' => false, 'message' => 'Error sending: ' . $errorMsg]);
+        $errorMsg = $responseData['Message'] ?? 'Erreur inconnue';
+        echo json_encode(['success' => false, 'message' => "Erreur d'envoi : " . $errorMsg]);
     }
     exit;
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Report to Lisbon City Council (💁‍♀️ Karen Bot)</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🇵🇹</text></svg>">
+    <title>Signalement à la Mairie de Guyancourt (💁‍♀️ Karen Bot)</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🇫🇷</text></svg>">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -486,8 +465,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     </style>
 </head>
 <body>
-    <h1>🇵🇹 Report to Lisbon City Council (💁‍♀️ Karen Bot)</h1>
-
+    <h1>🇫🇷 Signalement à la Mairie de Guyancourt (💁‍♀️ Karen Bot)</h1>
 
     <?php if ($message): ?>
         <div class="message <?= $messageType ?>"><?= htmlspecialchars($message) ?></div>
@@ -498,46 +476,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         <input type="hidden" id="selectedLat" name="lat" value="">
         <input type="hidden" id="selectedLng" name="lng" value="">
 
-        <button type="button" onclick="useMyLocation()" style="margin-bottom: 10px;">Center on my location</button>
-        <label>Then click on map to place marker</label>
+        <button type="button" onclick="useMyLocation()" style="margin-bottom: 10px;">Me localiser</button>
+        <label>Cliquez sur la carte pour placer le marqueur</label>
         <div id="map"></div>
-        <div class="location-info" id="locationInfo">No location selected</div>
+        <div class="location-info" id="locationInfo">Aucun emplacement sélectionné</div>
 
-        <label>Attach images (optional)</label>
+        <label>Joindre des photos (optionnel)</label>
         <div class="upload-box" id="uploadBox" onclick="document.getElementById('attachments').click()">
             <div id="uploadPlaceholder">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                     <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
                 </svg>
-                <p>Click to upload photos or drag & drop</p>
+                <p>Cliquez pour ajouter des photos ou glissez-déposez</p>
             </div>
             <div id="imagePreview" style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;"></div>
             <input type="file" id="attachments" name="attachments[]" multiple accept="image/*" onchange="previewImages(this)">
         </div>
 
-        <label for="input">Your complaint</label>
-        <textarea id="input" required placeholder="Write your complaint here..." oninput="localStorage.setItem('complaint', this.value)" style="min-height: 100px;"></textarea>
+        <label for="input">Votre signalement</label>
+        <textarea id="input" required placeholder="Décrivez votre problème ici..." oninput="localStorage.setItem('complaint', this.value)" style="min-height: 100px;"></textarea>
 
         <button type="button" id="expandBtn" onclick="expandToFormalLetter()">
-            Write letter
+            Rédiger la lettre
         </button>
 
-        <label for="complaint" style="margin-top: 15px;">Portuguese formal letter (this will be sent)</label>
-        <textarea id="complaint" name="complaint" placeholder="Portuguese letter will appear here..." style="min-height: 400px;"><?= htmlspecialchars($complaint ?? '') ?></textarea>
+        <label for="complaint" style="margin-top: 15px;">Lettre formelle en français (celle-ci sera envoyée)</label>
+        <textarea id="complaint" name="complaint" placeholder="La lettre en français apparaîtra ici..." style="min-height: 400px;"><?= htmlspecialchars($complaint ?? '') ?></textarea>
 
-        <label for="expanded" style="margin-top: 15px;">English translation (for your reference)</label>
-        <textarea id="expanded" readonly placeholder="English translation will appear here..." style="min-height: 400px;"><?= htmlspecialchars($expanded ?? '') ?></textarea>
+        <label for="expanded" style="margin-top: 15px;">Traduction en anglais (pour votre référence)</label>
+        <textarea id="expanded" readonly placeholder="La traduction en anglais apparaîtra ici..." style="min-height: 400px;"><?= htmlspecialchars($expanded ?? '') ?></textarea>
 
         <div class="buttons">
-            <button type="button" onclick="sendComplaint()">Send complaint</button>
+            <button type="button" onclick="sendComplaint()">Envoyer le signalement</button>
         </div>
 
         <div id="statusMessage" style="margin-top: 15px;"></div>
     </form>
 
     <script>
-        // Initialize map centered on New York City (default)
-        const map = L.map('map').setView([MAP_CENTER_LAT, MAP_CENTER_LNG], 13);
+        const map = L.map('map').setView([<?= MAP_CENTER_LAT ?>, <?= MAP_CENTER_LNG ?>], 13);
 
         const streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap'
@@ -547,13 +524,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             attribution: '© Esri'
         });
 
-        satellite.addTo(map); // Default to satellite
+        satellite.addTo(map);
 
-        L.control.layers({ 'Streets': streets, 'Satellite': satellite }).addTo(map);
+        L.control.layers({ 'Plan': streets, 'Satellite': satellite }).addTo(map);
 
         function useMyLocation() {
             if (!navigator.geolocation) {
-                alert('Geolocation not supported');
+                alert("La géolocalisation n'est pas supportée par votre navigateur");
                 return;
             }
 
@@ -562,7 +539,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     map.setView([pos.coords.latitude, pos.coords.longitude], 16);
                 },
                 (err) => {
-                    alert('Could not get location. Please allow location access.');
+                    alert("Impossible d'obtenir votre position. Veuillez autoriser la géolocalisation.");
                 },
                 { enableHighAccuracy: true }
             );
@@ -571,30 +548,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         let marker = null;
         let selectedAddress = '';
 
-        // User must click "Use my location" button to center map
-
         map.on('click', async function(e) {
             const lat = e.latlng.lat;
             const lng = e.latlng.lng;
 
-            // Update hidden fields
             document.getElementById('selectedLat').value = lat;
             document.getElementById('selectedLng').value = lng;
 
-            // Place/move marker
             if (marker) {
                 marker.setLatLng(e.latlng);
             } else {
                 marker = L.marker(e.latlng).addTo(map);
             }
 
-            // Show loading
-            document.getElementById('locationInfo').textContent = 'Getting address...';
+            document.getElementById('locationInfo').textContent = "Récupération de l'adresse...";
 
-            // Reverse geocode
             try {
-                const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`, {
-                    headers: { 'User-Agent': 'LisbonComplaints/1.0' }
+                const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=fr`, {
+                    headers: { 'User-Agent': 'GuyancourtSignalements/1.0' }
                 });
                 const data = await resp.json();
                 selectedAddress = data.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
@@ -605,10 +576,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             }
         });
 
-        // Load saved complaint from localStorage
         document.getElementById('input').value = localStorage.getItem('complaint') || '';
 
-        // Drag and drop support
         const uploadBox = document.getElementById('uploadBox');
         const fileInput = document.getElementById('attachments');
 
@@ -662,17 +631,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             const lng = document.getElementById('selectedLng').value;
 
             if (!lat || !lng) {
-                alert('Please click on the map to set the problem location first.');
+                alert("Veuillez d'abord cliquer sur la carte pour définir la localisation du problème.");
                 return;
             }
 
             if (!input.trim()) {
-                alert('Please write your complaint first.');
+                alert("Veuillez d'abord décrire votre problème.");
                 return;
             }
 
             btn.disabled = true;
-            btn.innerHTML = 'Writing...<span class="loading"></span>';
+            btn.innerHTML = 'Rédaction en cours...<span class="loading"></span>';
 
             try {
                 const formData = new FormData();
@@ -695,14 +664,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     document.getElementById('complaint').value = parts[0].trim();
                     document.getElementById('expanded').value = parts[1] ? parts[1].trim() : '';
                 } else {
-                    alert('Error: ' + (data.error || 'Failed to expand'));
+                    alert('Erreur : ' + (data.error || 'Échec de la rédaction'));
                 }
             } catch (error) {
-                alert('Connection error. Please try again.');
+                alert('Erreur de connexion. Veuillez réessayer.');
                 console.error(error);
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = 'Write letter';
+                btn.innerHTML = 'Rédiger la lettre';
             }
         }
 
@@ -713,24 +682,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             const hasAttachments = attachments.files && attachments.files.length > 0;
 
             if (!complaint.trim()) {
-                alert('Please expand your complaint to a formal letter first.');
+                alert("Veuillez d'abord rédiger la lettre formelle.");
                 return;
             }
 
             if (!hasAttachments) {
-                if (!confirm('No photo attached. Send anyway?')) {
+                if (!confirm('Aucune photo jointe. Envoyer quand même ?')) {
                     return;
                 }
             }
 
-            if (!confirm('Are you sure you want to send this complaint?')) {
+            if (!confirm('Êtes-vous sûr de vouloir envoyer ce signalement ?')) {
                 return;
             }
 
             const formData = new FormData(document.getElementById('complaintForm'));
             formData.set('action', 'send');
 
-            statusDiv.innerHTML = '<span style="color: #666;">Sending...</span>';
+            statusDiv.innerHTML = '<span style="color: #666;">Envoi en cours...</span>';
 
             try {
                 const response = await fetch(window.location.pathname + window.location.search, {
@@ -750,7 +719,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     statusDiv.innerHTML = '<span style="color: red;">' + data.message + '</span>';
                 }
             } catch (error) {
-                statusDiv.innerHTML = '<span style="color: red;">Connection error. Please try again.</span>';
+                statusDiv.innerHTML = '<span style="color: red;">Erreur de connexion. Veuillez réessayer.</span>';
                 console.error(error);
             }
         }
