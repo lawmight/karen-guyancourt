@@ -37,9 +37,6 @@ export default function CouncilClient({ accessKey }: { accessKey: string }) {
         <label>Joindre des photos (optionnel)</label>
         <UploadBox />
 
-        <label>Joindre des photos (optionnel)</label>
-        <UploadBox />
-
         <section className="form-section" aria-labelledby="signalement-heading">
           <label id="signalement-heading" htmlFor="input">Votre signalement</label>
           <textarea
