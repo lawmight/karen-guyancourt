@@ -27,7 +27,6 @@ Veuillez agréer, Madame, Monsieur, l'expression de mes salutations distinguées
 
 type ExpandBody = {
   complaint?: string;
-  hasAttachments?: boolean;
   address?: string;
   lat?: string;
   lng?: string;
@@ -45,7 +44,6 @@ export async function POST(request: NextRequest) {
 
   const body = (await request.json()) as ExpandBody;
   const complaint = body.complaint?.trim() ?? "";
-  const hasAttachments = Boolean(body.hasAttachments);
   const address = body.address?.trim() ?? "";
   const lat = body.lat?.trim() ?? "";
   const lng = body.lng?.trim() ?? "";
@@ -66,11 +64,6 @@ export async function POST(request: NextRequest) {
   }
 
   userPrompt += `Signalement :\n${complaint}`;
-
-  if (hasAttachments) {
-    userPrompt +=
-      "\n\nNOTE : L'expéditeur va joindre des photographies comme preuve. Mentionnez-le dans la lettre (ex: 'Vous trouverez ci-joint des photographies attestant de la situation décrite.')";
-  }
 
   userPrompt +=
     "\n\nRédigez d'abord la lettre en français, puis écrivez ===ENGLISH=== et la traduction en anglais.";
@@ -115,9 +108,18 @@ export async function POST(request: NextRequest) {
   }
 
   const data = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
+    choices?: Array<{ message?: { content?: string | Array<{ type?: string; text?: string }> } }>;
   };
-  const expanded = data.choices?.[0]?.message?.content?.trim();
+  const rawContent = data.choices?.[0]?.message?.content;
+  const expanded = (typeof rawContent === "string"
+    ? rawContent
+    : Array.isArray(rawContent)
+      ? rawContent
+          .map((part) => (typeof part === "object" && part && "text" in part ? part.text : String(part)))
+          .filter(Boolean)
+          .join(" ")
+      : ""
+  ).trim();
 
   if (!expanded) {
     return NextResponse.json({ success: false, error: "Réponse invalide de l'API OpenRouter" });

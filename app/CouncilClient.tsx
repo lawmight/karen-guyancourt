@@ -246,8 +246,6 @@ function CouncilScript({ accessKey }: { accessKey: string }) {
     const expandBtn = document.getElementById("expandBtn");
     expandBtn?.addEventListener("click", async () => {
       const input = (document.getElementById("input") as HTMLTextAreaElement).value;
-      const attachments = document.getElementById("attachments") as HTMLInputElement;
-      const hasAttachments = !!(attachments?.files?.length);
       const lat = (document.getElementById("selectedLat") as HTMLInputElement).value;
       const lng = (document.getElementById("selectedLng") as HTMLInputElement).value;
       if (!lat || !lng) {
@@ -267,7 +265,6 @@ function CouncilScript({ accessKey }: { accessKey: string }) {
           headers: { "Content-Type": "application/json", "X-Access-Key": accessKey },
           body: JSON.stringify({
             complaint: input,
-            hasAttachments,
             address: selectedAddress,
             lat,
             lng,
