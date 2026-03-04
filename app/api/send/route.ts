@@ -51,7 +51,10 @@ async function resizeImage(buffer: Buffer, mimeType: string): Promise<{ data: Bu
 }
 
 export async function POST(request: NextRequest) {
-  const key = request.headers.get("x-access-key") ?? request.nextUrl.searchParams.get("key");
+  const key =
+    request.cookies.get("karen_access")?.value ??
+    request.headers.get("x-access-key") ??
+    request.nextUrl.searchParams.get("key");
   const expectedKey = process.env.KEY_TO_ACCESS_THE_SCRIPT;
   if (!expectedKey || key !== expectedKey) {
     return NextResponse.json({ success: false, message: "Non autorisé" }, { status: 404 });

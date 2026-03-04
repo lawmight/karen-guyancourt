@@ -261,6 +261,7 @@ function CouncilScript({ accessKey }: { accessKey: string }) {
       try {
         const res = await fetch("/api/expand", {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json", "X-Access-Key": accessKey },
           body: JSON.stringify({
             complaint: input,
@@ -307,6 +308,7 @@ function CouncilScript({ accessKey }: { accessKey: string }) {
       try {
         const res = await fetch("/api/send?key=" + encodeURIComponent(accessKey), {
           method: "POST",
+          credentials: "include",
           headers: { "X-Access-Key": accessKey },
           body: formData,
         });
