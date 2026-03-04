@@ -19,7 +19,8 @@ This project runs entirely on Vercel (no PHP needed).
    - In [Vercel](https://vercel.com): **New Project** → import this repo.
    - In **Settings → Environment Variables**, add all variables from `.env.local` (see `.env.local.example`).
    - Deploy. Your app will be at **https://your-project.vercel.app**.
-   - Use it with the key: **https://your-project.vercel.app?key=YOUR_KEY**
+   - **First visit:** open **https://your-project.vercel.app?key=YOUR_KEY** once. The app sets an httpOnly cookie and redirects to `/`.
+   - **Next visits:** you can open **https://your-project.vercel.app** (no key in the URL); the cookie loads the app automatically.
 
 ## What's included
 
@@ -32,7 +33,7 @@ This project runs entirely on Vercel (no PHP needed).
 
 All of these are required in `.env.local` for local dev and in Vercel environment settings, except `CC_EMAILS` (optional):
 
-- `KEY_TO_ACCESS_THE_SCRIPT` (query key used by `/?key=...` and API routes; APIs also accept header `x-access-key`)
+- `KEY_TO_ACCESS_THE_SCRIPT` (used by `/?key=...` for first-time auth; then stored in an httpOnly cookie so `/` loads without the key. API routes accept the key via cookie, header `x-access-key`, or query.)
 - `OPENROUTER_API_KEY` (used by `/api/expand`)
 - `POSTMARK_API_KEY` (used by `/api/send`)
 - `FROM_YOUR_EMAIL`
