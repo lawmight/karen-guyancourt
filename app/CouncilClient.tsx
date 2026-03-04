@@ -304,13 +304,17 @@ function CouncilScript({ accessKey }: { accessKey: string }) {
       formData.append("lat", (document.getElementById("selectedLat") as HTMLInputElement).value);
       formData.append("lng", (document.getElementById("selectedLng") as HTMLInputElement).value);
       if (statusDiv) statusDiv.innerHTML = "<span style='color:#666'>Envoi en cours...</span>";
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 90_000);
       try {
         const res = await fetch("/api/send?key=" + encodeURIComponent(accessKey), {
           method: "POST",
           credentials: "include",
           headers: { "X-Access-Key": accessKey },
+          signal: controller.signal,
           body: formData,
         });
+        clearTimeout(timeoutId);
         const data = await res.json();
         if (data.success) {
           if (statusDiv) statusDiv.innerHTML = "<span style='color:green'>" + data.message + "</span>";
@@ -321,8 +325,22 @@ function CouncilScript({ accessKey }: { accessKey: string }) {
         } else {
           if (statusDiv) statusDiv.innerHTML = "<span style='color:red'>" + data.message + "</span>";
         }
-      } catch {
-        if (statusDiv) statusDiv.innerHTML = "<span style='color:red'>Erreur de connexion. Veuillez réessayer.</span>";
+      } catch (err) {
+        clearTimeout(timeoutId);
+        const isAbort = err instanceof Error && err.name === "AbortError";
+        const msg = isAbort
+          ? "La requête a expiré. Réessayez en Wi‑Fi ou avec un meilleur réseau."
+          : "Erreur de connexion. Veuillez réessayer.";
+        if (statusDiv) statusDiv.innerHTML = "<span style='color:red'>" + msg + "</span>";
+        if (typeof console !== "undefined" && console.error) {
+          console.error("[Signalement] Erreur envoi:", isAbort ? "timeout" : err);
+        }
+        if (!isAbort && statusDiv) {
+          const hint = document.createElement("p");
+          hint.style.cssText = "color:#666;font-size:0.9em;margin-top:8px;";
+          hint.textContent = "Astuce : en cas de VPN ou réseau instable, essayez en Wi‑Fi ou sans VPN.";
+          statusDiv.appendChild(hint);
+        }
       }
     });
   }, [accessKey]);
