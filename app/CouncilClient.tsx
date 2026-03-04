@@ -25,10 +25,10 @@ export default function CouncilClient({ accessKey }: { accessKey: string }) {
         <input type="hidden" id="selectedLat" name="lat" />
         <input type="hidden" id="selectedLng" name="lng" />
 
-        <button type="button" className="btn btn-secondary" id="locateBtn">
+        <button type="button" className="btn btn-secondary btn-block" id="locateBtn">
           Me localiser
         </button>
-        <label>Cliquez sur la carte pour placer le marqueur</label>
+        <label className="map-label">Cliquez sur la carte pour placer le marqueur</label>
         <div id="map-root" className="map" />
         <div className="location-info" id="locationInfo">
           Aucun emplacement sélectionné
@@ -37,40 +37,45 @@ export default function CouncilClient({ accessKey }: { accessKey: string }) {
         <label>Joindre des photos (optionnel)</label>
         <UploadBox />
 
-        <label htmlFor="input">Votre signalement</label>
-        <textarea
-          id="input"
-          required
-          placeholder="Décrivez votre problème ici..."
-          className="textarea input"
-          rows={4}
-        />
+        <label>Joindre des photos (optionnel)</label>
+        <UploadBox />
 
-        <button type="button" className="btn btn-primary" id="expandBtn">
-          Rédiger la lettre
-        </button>
+        <section className="form-section" aria-labelledby="signalement-heading">
+          <label id="signalement-heading" htmlFor="input">Votre signalement</label>
+          <textarea
+            id="input"
+            required
+            placeholder="Décrivez votre problème ici..."
+            className="textarea input"
+            rows={4}
+          />
+          <button type="button" className="btn btn-primary" id="expandBtn">
+            Rédiger la lettre
+          </button>
+        </section>
 
-        <label htmlFor="complaint" style={{ marginTop: 15 }}>
-          Lettre formelle en français (celle-ci sera envoyée)
-        </label>
-        <textarea
-          id="complaint"
-          name="complaint"
-          placeholder="La lettre en français apparaîtra ici..."
-          className="textarea complaint"
-          rows={12}
-        />
-
-        <label htmlFor="expanded" style={{ marginTop: 15 }}>
-          Traduction en anglais (pour votre référence)
-        </label>
-        <textarea
-          id="expanded"
-          readOnly
-          placeholder="La traduction en anglais apparaîtra ici..."
-          className="textarea expanded"
-          rows={12}
-        />
+        <section className="form-section" aria-labelledby="lettre-heading">
+          <label id="lettre-heading" htmlFor="complaint" style={{ marginTop: 15 }}>
+            Lettre formelle en français (celle-ci sera envoyée)
+          </label>
+          <textarea
+            id="complaint"
+            name="complaint"
+            placeholder="La lettre en français apparaîtra ici..."
+            className="textarea complaint"
+            rows={12}
+          />
+          <label htmlFor="expanded" style={{ marginTop: 15 }}>
+            Traduction en anglais (pour votre référence)
+          </label>
+          <textarea
+            id="expanded"
+            readOnly
+            placeholder="La traduction en anglais apparaîtra ici..."
+            className="textarea expanded"
+            rows={12}
+          />
+        </section>
 
         <div className="buttons">
           <button type="button" className="btn btn-primary" id="sendBtn">

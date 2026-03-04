@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const OPENROUTER_MODEL = "meta-llama/llama-3.1-8b-instruct:free";
+const OPENROUTER_MODEL = "openrouter/free";
 
 const systemPrompt = `Vous êtes un assistant qui transforme des signalements informels en lettres formelles en français pour la Mairie de Guyancourt (Yvelines, Île-de-France).
 
