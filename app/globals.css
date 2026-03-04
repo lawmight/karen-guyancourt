@@ -31,7 +31,8 @@ body {
 }
 
 .form .textarea,
-.form input[type="text"] {
+.form input[type="text"],
+.form input[type="password"] {
   width: 100%;
   padding: 12px;
   border: 1px solid #ddd;
@@ -49,6 +50,11 @@ body {
 .form .textarea.expanded {
   background: #f9f9f9;
   color: #555;
+}
+
+.form-error {
+  color: #c62828;
+  margin-top: 0;
 }
 
 .map {
